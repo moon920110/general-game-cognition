@@ -35,7 +35,7 @@ onMounted(() => {
   const fullURL = `${S3_BASE_URL}/${fileName}`;
 
   for (let i = 1; i <= 10; i++) {
-    const randomStartTime = Math.random() * (VIDEO_FULL_DURATION);
+    const randomStartTime = Math.random() * (VIDEO_FULL_DURATION - 3) + 3;
 
     items.value.push({
       id: i,
@@ -108,7 +108,7 @@ const submitTask = () => {
 
 <template>
   <div class="task-container">
-    <h2>[{{ gameName }}] 영상 평가 ({{ blockIndex + 1 }}세트)</h2>
+    <h2>[{{ gameName }}] 영상 평가 ({{ block + 1 }}세트)</h2>
     <p class="desc">재생 버튼을 누르면 3초간 재생되고 자동으로 멈춥니다. 원하는 만큼 다시 볼 수 있습니다.</p>
 
     <div v-for="(item, idx) in items" :key="item.id" class="item-box">
