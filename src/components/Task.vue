@@ -7,7 +7,7 @@ const emit = defineEmits(['submit', 'skip-to-end']);
 const items = ref([]);
 const isDebug = props.isDebug;
 
-const S3_BASE_URL = import.meta.env.VITE_S3_URL;
+const S3_BASE_URL = "https://general-game-cognition.s3.amazonaws.com/videos_mp4";
 const CACHE_URL = "/Users/supermoon/Documents/Research/Affective AI/AGAIN/videos"
 const VIDEO_FULL_DURATION = 120;
 const CLIP_DURATION = 3;
