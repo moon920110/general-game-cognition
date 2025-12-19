@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore/lite";
 
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FB_API_KEY,
-    authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FB_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FB_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FB_MSG_SENDER_ID,
-    appId: import.meta.env.VITE_FB_APP_ID,
-    measurementId: import.meta.env.VITE_FB_MEASUREMENT_ID
+    apiKey: "AIzaSyCTiyDYzP32hjqSTB7CnHBa1fUqu8-smEA",
+    authDomain: "general-game-cognition.firebaseapp.com",
+    projectId: "general-game-cognition",
+    storageBucket: "general-game-cognition.firebasestorage.app",
+    messagingSenderId: "289738551892",
+    appId: "1:289738551892:web:1c6e03ae1c5d110a8533c1",
+    measurementId: "G-V6FS0QTFSG"
 };
 
 const app = initializeApp(firebaseConfig);
