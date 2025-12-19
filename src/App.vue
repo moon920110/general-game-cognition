@@ -10,6 +10,11 @@ import {collection, addDoc} from 'firebase/firestore'
 
 import gameInfo from './assets/unique_AGAIN.json';
 
+const isDebug = computed(() => {
+  const params = new URLSearchParams(window.location.search);
+  return window.location.hostname === 'localhost' || params.get('debug') === 'true';
+});
+
 const currentStep = ref(1);
 const currentBlock = ref(0);
 
@@ -28,7 +33,7 @@ const participantData = reactive({
   bio: {},
   responses: [],
   startTime: new Date().toISOString(),
-  endTime: null
+  endTime: ''
 });
 
 onMounted(() => {
@@ -40,7 +45,11 @@ onMounted(() => {
 
   if (pid) {
     participantData.id = pid;
-    participantData.prolificInfo = {pid, studyID, sessionID};
+    participantData.prolificInfo = {
+      pid: pid,
+      studyID: studyID,
+      sessionID: sessionID
+    };
     console.log("Prolific User Detected:", pid);
   } else {
     const randomId = 'TEST_' + Math.floor(Math.random()*1000000);
@@ -68,9 +77,9 @@ const nextStep = () => {
   }
 };
 
-const finishExperiment = () => {
+const finishExperiment = async () => {
   participantData.endTime = new Date().toISOString();
-  saveAllData();
+  await saveAllData();
   currentStep.value = 5;
 };
 
@@ -88,6 +97,7 @@ const handleTaskSubmit = (blockData) => {
 };
 
 const saveAllData = async () => {
+  console.log("Start logging");
   try{
     await addDoc(collection(db, "results"), participantData);
     console.log("FB Data Saving Done");
@@ -114,16 +124,32 @@ const saveAllData = async () => {
         :block="currentBlock"
         :sessionList="gameInfo[currentGameName]"
         :gameName="currentGameName"
-        @submit="handleTaskSubmit" />
+        :isDebug="isDebug"
+        @submit="handleTaskSubmit"
+        @skip-to-end="finishExperiment"/>
 
     <Step5 v-if="currentStep === 5" :pid="participantData.id" />
   </div>
 </template>
 
-<style scoped>
-.container { max-width: 800px; margin: 0 auto; padding: 2rem; font-family: 'Noto Sans KR', sans-serif; }
-button { padding: 12px 24px; background: #42b883; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 6px; transition: background 0.2s; }
-button:hover { background: #3aa876; }
-button:disabled { background: #ccc; cursor: not-allowed; }
-input, select { padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; }
+<style>
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
+body {
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased; /* 글씨 부드럽게 */
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
 </style>

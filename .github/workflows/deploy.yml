@@ -32,13 +32,13 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          FB_API_KEY: ${{ secrets.FB_API_KEY }}
-          FB_AUTH_DOMAIN: ${{ secrets.FB_AUTH_DOMAIN }}
-          FB_PROJECT_ID: ${{ secrets.FB_PROJECT_ID }}
-          FB_STORAGE_BUCKET: ${{ secrets.FB_STORAGE_BUCKET }}
-          FB_MSG_SENDER_ID: ${{ secrets.FB_MSG_SENDER_ID }}
-          FB_APP_ID: ${{ secrets.FB_APP_ID }}
-          FB_MEASUREMENT_ID: ${{ secrets.FB_MEASUREMENT_ID }}
+          FB_API_KEY: ${{ secrets.VITE_FB_API_KEY }}
+          FB_AUTH_DOMAIN: ${{ secrets.VITE_FB_AUTH_DOMAIN }}
+          FB_PROJECT_ID: ${{ secrets.VITE_FB_PROJECT_ID }}
+          FB_STORAGE_BUCKET: ${{ secrets.VITE_FB_STORAGE_BUCKET }}
+          FB_MSG_SENDER_ID: ${{ secrets.VITE_FB_MSG_SENDER_ID }}
+          FB_APP_ID: ${{ secrets.VITE_FB_APP_ID }}
+          FB_MEASUREMENT_ID: ${{ secrets.VITE_FB_MEASUREMENT_ID }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

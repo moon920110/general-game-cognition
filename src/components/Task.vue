@@ -1,14 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-const props = defineProps(['block', 'sessionList', 'gameName']);
-const emit = defineEmits(['submit']);
+const props = defineProps(['block', 'sessionList', 'gameName', 'isDebug']);
+const emit = defineEmits(['submit', 'skip-to-end']);
 
-// 실제로는 videoData.js 등에서 가져오거나 S3 URL 규칙대로 생성
-// 여기서는 예시로 10개 생성
 const items = ref([]);
+const isDebug = props.isDebug;
 
 const S3_BASE_URL = "https://general-game-cognition.s3.amazonaws.com/videos_mp4";
+const CACHE_URL = "/Users/supermoon/Documents/Research/Affective AI/AGAIN/videos"
 const VIDEO_FULL_DURATION = 120;
 const CLIP_DURATION = 3;
 const gameCodeMap = {
@@ -32,7 +32,7 @@ onMounted(() => {
   const randomSession = props.sessionList[Math.floor(Math.random() * props.sessionList.length)];
   const gameCode = gameCodeMap[props.gameName];
   const fileName = `${randomSession.player_id}_${gameCode}_${randomSession.session_id}.mp4`;
-  const fullURL = `${S3_BASE_URL}/${fileName}`;
+  const fullURL = isDebug ? `${CACHE_URL}/${fileName}` : `${S3_BASE_URL}/${fileName}`;
 
   for (let i = 1; i <= 10; i++) {
     const randomStartTime = Math.random() * (VIDEO_FULL_DURATION - 3) + 3;
@@ -47,8 +47,8 @@ onMounted(() => {
         clipStartTime: randomStartTime
       },
       url: fullURL,
-      answer1: null, // 설문 응답 1
-      answer2: null  // 설문 응답 2
+      answer1: isDebug ? 1 : null, // 설문 응답 1
+      answer2: isDebug ? 1 : null  // 설문 응답 2
     });
   }
 });
@@ -108,8 +108,11 @@ const submitTask = () => {
 
 <template>
   <div class="task-container">
-    <h2>[{{ gameName }}] 영상 평가 ({{ block + 1 }}세트)</h2>
-    <p class="desc">재생 버튼을 누르면 3초간 재생되고 자동으로 멈춥니다. 원하는 만큼 다시 볼 수 있습니다.</p>
+    <h2>[{{ gameName }}] Annotation (Game {{ block + 1 }} / 9)</h2>
+    <p class="desc">
+      Click the play button to watch a 3-second clip.<br>
+      You can replay it as many times as you need.
+    </p>
 
     <div v-for="(item, idx) in items" :key="item.id" class="item-box">
       <div class="header">
@@ -132,68 +135,103 @@ const submitTask = () => {
           ></video>
 
           <button class="replay-btn" @click="playClip(item)">
-            <span v-if="item.isPlaying">⏹ 재생 중...</span>
-            <span v-else>▶️ 영상 재생 (3초)</span>
+            <span v-if="item.isPlaying">⏹ Playing...</span>
+            <span v-else>▶️ Play Clip (3s)</span>
           </button>
         </div>
 
         <div class="survey-section">
           <div class="q-row">
-            <p>Q1. 얼마나 흥미진진(Exciting)한가요?</p>
+            <p class="question-text">Q1. How <strong>Exciting</strong> is this moment?</p>
             <div class="scale-group">
               <label v-for="n in 5" :key="n" :class="{ selected: item.answer1 === n }">
                 <input type="radio" :name="`q1_${gameName}_${item.id}`" :value="n" v-model="item.answer1">
                 <span>{{ n }}</span>
               </label>
             </div>
-            <div class="labels"><span>전혀 아님</span><span>매우 흥미로움</span></div>
+            <div class="labels">
+              <span>Not at all</span>
+              <span>Very Exciting</span>
+            </div>
           </div>
 
           <div class="q-row">
-            <p>Q2. 얼마나 긍정적(Positive)인가요?</p>
+            <p class="question-text">Q2. How <strong>Positive</strong> is this moment?</p>
             <div class="scale-group">
               <label v-for="n in 5" :key="n" :class="{ selected: item.answer2 === n }">
                 <input type="radio" :name="`q2_${gameName}_${item.id}`" :value="n" v-model="item.answer2">
                 <span>{{ n }}</span>
               </label>
             </div>
-            <div class="labels"><span>매우 부정적</span><span>매우 긍정적</span></div>
+            <div class="labels">
+              <span>Very Negative</span>
+              <span>Very Positive</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <button class="next-btn" @click="submitTask">다음 세트로 이동</button>
+    <button class="next-btn" @click="submitTask">Submit & Next</button>
+    <div v-if="isDebug" class="debug-panel">
+      <span>🛠 Debug Tool: </span>
+
+      <button @click="$emit('skip-to-end')" class="debug-btn jump-btn">
+        🚀 Jump to End (Force Finish)
+      </button>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* 기존 스타일 유지 + 버튼 스타일 추가 */
 .task-container { max-width: 800px; margin: 0 auto; }
-.desc { color: #666; margin-bottom: 30px; }
-.item-box { background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-bottom: 40px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.desc { color: #ddd; margin-bottom: 30px; line-height: 1.5; }
+
+.item-box {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 40px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
 .header { display: flex; justify-content: space-between; margin-bottom: 15px; }
 .badge { background: #42b883; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 14px; }
+
 .content-wrapper { display: flex; gap: 20px; flex-wrap: wrap; }
 .video-section { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 10px; }
 .survey-section { flex: 1; min-width: 300px; }
+
 video { border-radius: 8px; background: #000; width: 100%; aspect-ratio: 16/9; }
 
-/* 재생 버튼 스타일 */
 .replay-btn {
-  padding: 10px; background-color: #f0f0f0; border: 1px solid #ccc;
-  border-radius: 6px; cursor: pointer; font-weight: bold; color: #333;
-  transition: background 0.2s;
+  padding: 12px; background-color: #f8f9fa; border: 1px solid #dee2e6;
+  border-radius: 6px; cursor: pointer; font-weight: bold; color: #495057;
+  transition: all 0.2s;
 }
-.replay-btn:hover { background-color: #e0e0e0; }
+.replay-btn:hover { background-color: #e9ecef; }
 
 .q-row { margin-bottom: 25px; }
+
+/* ✅ [해결] 질문 텍스트 색상을 진한 회색(#333)으로 강제 지정 */
+.question-text {
+  color: #333 !important;
+  font-weight: bold;
+  margin-bottom: 8px;
+  margin-top: 0;
+}
+
 .scale-group { display: flex; justify-content: space-between; background: #f8f9fa; padding: 10px; border-radius: 8px; }
 .scale-group label { flex: 1; text-align: center; cursor: pointer; }
 .scale-group input { display: none; }
 .scale-group span { display: block; width: 30px; height: 30px; line-height: 30px; margin: 0 auto; border-radius: 50%; transition: 0.2s; color: #555; font-weight: bold; }
-.scale-group label.selected span { background: #42b883; color: white; transform: scale(1.1); }
+
+.scale-group label.selected span { background: #42b883; color: white; transform: scale(1.1); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
 .labels { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 5px; padding: 0 5px; }
-.next-btn { width: 100%; padding: 16px; font-size: 18px; background: #2c3e50; color: white; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
+
+.next-btn { width: 100%; padding: 16px; font-size: 18px; background: #2c3e50; color: white; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; margin-top: 20px; }
 .next-btn:hover { background: #34495e; }
+
 </style>
