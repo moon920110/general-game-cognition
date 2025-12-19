@@ -6,10 +6,11 @@ import Step3 from './components/Instruction.vue'
 import Step4 from './components/Task.vue'
 import Step5 from './components/Final.vue'
 import {db} from './firebase.js'
-import {collection, addDoc} from 'firebase/firestore'
+import {collection, addDoc} from 'firebase/firestore/lite'
 
 import gameInfo from './assets/unique_AGAIN.json';
 
+const isLoading = ref(false);
 const isDebug = computed(() => {
   const params = new URLSearchParams(window.location.search);
   return window.location.hostname === 'localhost' || params.get('debug') === 'true';
@@ -51,7 +52,8 @@ onMounted(() => {
       sessionID: sessionID
     };
     console.log("Prolific User Detected:", pid);
-  } else {
+  }
+  if (!pid && isDebug) {
     const randomId = 'TEST_' + Math.floor(Math.random()*1000000);
     participantData.id = randomId;
     console.log("Testing Mode (No Prolific ID):", randomId);
@@ -69,18 +71,8 @@ const nextStep = () => {
     currentStep.value = 4;
   } else if (currentStep.value === 4) {
     currentBlock.value++;
-    if (currentBlock.value < totalBlocks) {
-      currentStep.value = 3;
-    } else {
-      finishExperiment();
-    }
+    currentStep.value = 3;
   }
-};
-
-const finishExperiment = async () => {
-  participantData.endTime = new Date().toISOString();
-  await saveAllData();
-  currentStep.value = 5;
 };
 
 const handleBioSubmit = (data) => {
@@ -93,7 +85,31 @@ const handleTaskSubmit = (blockData) => {
     blockIndex: currentBlock.value,
     data: blockData
   });
-  nextStep();
+  if (currentBlock.value+1 < totalBlocks){
+    nextStep();
+  } else {
+    finishExperiment();
+  }
+};
+
+
+const finishExperiment = async () => {
+  if (!participantData.id === "") {
+    alert("[Invalid Access] No Prolific ID");
+    return;
+  }
+  participantData.endTime = new Date().toISOString();
+  isLoading.value = true;
+  try {
+    await saveAllData();
+    window.scrollTo(0, 0);
+    isLoading.value = false;
+    currentStep.value = 5;
+  } catch (error) {
+    console.error("Save failed:", error);
+    alert("Failed to Save Data. Please capture the screen and send it to the responsibility (super_moon@gm.gist.ac.kr).");
+    isLoading.value = false;
+  }
 };
 
 const saveAllData = async () => {
@@ -125,6 +141,7 @@ const saveAllData = async () => {
         :sessionList="gameInfo[currentGameName]"
         :gameName="currentGameName"
         :isDebug="isDebug"
+        :isLoading="isLoading"
         @submit="handleTaskSubmit"
         @skip-to-end="finishExperiment"/>
 

@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-const props = defineProps(['block', 'sessionList', 'gameName', 'isDebug']);
+const props = defineProps(['block', 'sessionList', 'gameName', 'isDebug', 'isLoading']);
 const emit = defineEmits(['submit', 'skip-to-end']);
 
 const items = ref([]);
 const isDebug = props.isDebug;
 
-const S3_BASE_URL = "https://general-game-cognition.s3.amazonaws.com/videos_mp4";
+const S3_BASE_URL = import.meta.env.VITE_S3_URL;
 const CACHE_URL = "/Users/supermoon/Documents/Research/Affective AI/AGAIN/videos"
 const VIDEO_FULL_DURATION = 120;
 const CLIP_DURATION = 3;
@@ -172,14 +172,16 @@ const submitTask = () => {
       </div>
     </div>
 
-    <button class="next-btn" @click="submitTask">Submit & Next</button>
-    <div v-if="isDebug" class="debug-panel">
-      <span>🛠 Debug Tool: </span>
+    <button
+        class="next-btn"
+        @click="submitTask"
+        :disabled="isLoading"
+        :style="{ opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }"
+    >
+      <span v-if="isLoading"> Saving Data ... </span>
+      <span v-else> Submit & Next </span>
+    </button>
 
-      <button @click="$emit('skip-to-end')" class="debug-btn jump-btn">
-        🚀 Jump to End (Force Finish)
-      </button>
-    </div>
   </div>
 </template>
 
