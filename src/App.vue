@@ -94,7 +94,7 @@ const handleTaskSubmit = (blockData) => {
 
 
 const finishExperiment = async () => {
-  if (!participantData.id === "") {
+  if (participantData.prolificInfo.pid === "") {
     alert("[Invalid Access] No Prolific ID");
     return;
   }
@@ -146,6 +146,11 @@ const saveAllData = async () => {
         @skip-to-end="finishExperiment"/>
 
     <Step5 v-if="currentStep === 5" :pid="participantData.id" />
+
+    <footer class="contact-footer">
+      If you have any problems or questions, please feel free to contact <a href="mailto:super_moon@gm.gist.ac.kr">super_moon@gm.gist.ac.kr</a> <br>
+      Conducted by Cognition and Intelligence Lab (CILAB), Gwangju Institute of Science and Technology (GIST), South Korea.
+    </footer>
   </div>
 </template>
 
@@ -154,6 +159,8 @@ const saveAllData = async () => {
 
 body {
   font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  background-color: #f0f2f5;
+  color: #333;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased; /* 글씨 부드럽게 */
@@ -164,9 +171,23 @@ body {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 button, input, select, textarea {
   font-family: inherit;
+}
+
+.contact-footer {
+  margin-top: auto; /* 내용이 적어도 푸터를 아래로 밀어냄 */
+  padding-top: 50px;
+  padding-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+  color: #999;
+  border-top: 1px solid #eee; /* 구분선 */
 }
 </style>

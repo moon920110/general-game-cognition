@@ -61,7 +61,7 @@ const info = computed(() => {
 .status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; color: #666; font-size: 14px; }
 .step-badge { background: #eee; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
 
-.title-section { text-align: center; margin-bottom: 40px; }
+.title-section { text-align: center; margin-bottom: 40px; color: #333;}
 h1 { font-size: 2.5rem; margin: 0 0 10px 0; color: #cecec0; }
 h3 { font-size: 2rem; margin: 0 0 10px 0; color: #2c3e50; }
 

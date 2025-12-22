@@ -1,5 +1,4 @@
 <script setup>
-// 로직 없음
 </script>
 
 <template>
@@ -7,8 +6,7 @@
     <h1>Welcome to the Research Study</h1>
 
     <p class="intro">
-      This study aims to identify general factors in game situations <br>
-      that influence human <strong>Core Affect (Arousal & Valence)</strong>.
+      This study aims to identify <strong>general factors</strong> in game situations based on the <strong>appraisal axes</strong> that humans use to evaluate specific contexts. <br>
     </p>
 
     <div class="info-box">
@@ -25,11 +23,11 @@
       <h3>📌 Study Overview</h3>
       <ul>
         <li><strong>Estimated Duration:</strong> Approx. 20 minutes</li>
-        <li><strong>Content:</strong> 9 Games × 10 Clips (3 seconds each)</li>
+        <li><strong>Content:</strong> 9 Games × 10 Rounds (3 seconds each)</li>
         <li><strong>Task Instruction:</strong>
           <ul class="sub-list">
-            <li>You will watch short gameplay clips.</li>
-            <li>Please evaluate the situational factors (e.g., <strong>Control</strong>, <strong>Resource Sufficiency</strong>, etc.) from an <strong>'OBJECTIVE'</strong> perspective.</li>
+            <li>You will watch <strong>two short gameplay clips (A & B)</strong> in each round.</li>
+            <li>Please <strong>compare</strong> them and select which clip <strong>better fits the question</strong>.</li>
           </ul>
         </li>
       </ul>
@@ -56,14 +54,14 @@
 }
 
 h1 {
-  color: #bcced0;
+  color: #080808;
   margin-bottom: 20px;
   font-size: 2.2rem;
 }
 
 .intro {
   font-size: 1.1rem;
-  color: #999;
+  color: #777;
   line-height: 1.6;
   margin-bottom: 30px;
 }
