@@ -10,6 +10,15 @@ import {collection, addDoc} from 'firebase/firestore/lite'
 
 import gameInfo from './assets/unique_AGAIN.json';
 
+const shuffleArray = (array) => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
 const isLoading = ref(false);
 const isDebug = computed(() => {
   const params = new URLSearchParams(window.location.search);
@@ -19,10 +28,11 @@ const isDebug = computed(() => {
 const currentStep = ref(1);
 const currentBlock = ref(0);
 
-const gameList = Object.keys(gameInfo);
-const totalBlocks = gameList.length;
+const originalGameKeys = Object.keys(gameInfo);
+const gameList = ref(shuffleArray(originalGameKeys));
+const totalBlocks = gameList.value.length;
 
-const currentGameName = computed(() => gameList[currentBlock.value]);
+const currentGameName = computed(() => gameList.value[currentBlock.value]);
 
 const participantData = reactive({
   id: '',
