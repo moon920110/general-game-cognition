@@ -7,56 +7,57 @@ const emit = defineEmits(['submit', 'skip-to-end']);
 const items = ref([]);
 const isDebug = props.isDebug;
 
-const S3_BASE_URL = "https://general-game-cognition.s3.amazonaws.com/videos_mp4";
-const CACHE_URL = "/Users/supermoon/Documents/Research/Affective AI/AGAIN/videos"
+const S3_BASE_URL = import.meta.env.VITE_S3_BASE_URL || "https://general-game-cognition.s3.amazonaws.com/videos_mp4";
+const CACHE_URL = "/Users/supermoon/Documents/Research/Affective AI/AGAIN/videos";
+
 const VIDEO_FULL_DURATION = 120;
 const CLIP_DURATION = 3;
+
 const gameCodeMap = {
-  "TinyCars": "tiny",
-  "Solid": "solid",
-  "ApexSpeed": "apex",
-  "Heist!": "fps",
-  "Shootout": "gallery",
-  "TopDown": "topdown",
-  "Run'N'Gun": "gun",
-  "Pirates!": "platform",
-  "Endless": "endless"
+  "TinyCars": "tiny", "Solid": "solid", "ApexSpeed": "apex", "Heist!": "fps",
+  "Shootout": "gallery", "TopDown": "topdown", "Run'N'Gun": "gun",
+  "Pirates!": "platform", "Endless": "endless"
 };
+
+const APPRAISAL_QUESTIONS = [
+  { key: 'novelty', label: 'Novelty', desc: 'Which clip shows a more <strong>novel</strong> situation (i.e., <strong>sudden</strong>, <strong>unfamiliar</strong>, or <strong>unpredictable</strong>)?' },
+  { key: 'goal_relevance', label: 'Goal Relevance', desc: 'In which clip is the situation more <strong>relevant</strong> to the game\'s goal?' },
+  { key: 'outcome_probability', label: 'Outcome Probability', desc: 'In which clip is the <strong>result</strong> more <strong>predictable</strong>?' },
+  { key: 'discrepancy', label: 'Discrepancy', desc: 'Which clip shows a situation that is more <strong>unexpected or unpredictable</strong>?' },
+  { key: 'conduciveness', label: 'Goal Conduciveness', desc: 'Which clip shows a situation that is more <strong>helpful</strong> to achieving the game\'s goal?' },
+  { key: 'urgency', label: 'Urgency', desc: 'Which clip feels more <strong>urgent</strong> regarding the game\'s goal?' },
+  { key: 'control', label: 'Control', desc: 'In which clip do you feel you have more <strong>control</strong> over the situation?' },
+  { key: 'power', label: 'Power (Resources)', desc: 'In which clip do you have more <strong>resources</strong> to handle the situation?' }
+];
 
 onMounted(() => {
   if (!props.sessionList || props.sessionList.length === 0) {
-    alert(`ERROR: [${props.gameName}] No game data.`)
+    alert(`ERROR: [${props.gameName}] No game data.`);
     return;
   }
-
   const randomSession = props.sessionList[Math.floor(Math.random() * props.sessionList.length)];
   const gameCode = gameCodeMap[props.gameName];
   const fileName = `${randomSession.player_id}_${gameCode}_${randomSession.session_id}.mp4`;
   const fullURL = isDebug ? `${CACHE_URL}/${fileName}` : `${S3_BASE_URL}/${fileName}`;
 
   for (let i = 1; i <= 10; i++) {
-    const randomStartTimeA = Math.random() * (VIDEO_FULL_DURATION - 3) + 3;
-    const randomStartTimeB = Math.random() * (VIDEO_FULL_DURATION - 3) + 3;
+    const rStartA = Math.random() * (VIDEO_FULL_DURATION - CLIP_DURATION - 2) + 2;
+    const rStartB = Math.random() * (VIDEO_FULL_DURATION - CLIP_DURATION - 2) + 2;
+    const initialAnswers = {};
+    APPRAISAL_QUESTIONS.forEach(q => initialAnswers[q.key] = isDebug ? "A > B" : null);
 
     items.value.push({
       id: i,
       meta: {
-        gameName: props.gameName,
-        playerId: randomSession.player_id,
-        sessionID: randomSession.session_id,
-        videoFile: fileName,
-        clipStartTimeA: randomStartTimeA,
-        clipStartTimeB: randomStartTimeB,
+        gameName: props.gameName, playerId: randomSession.player_id, sessionID: randomSession.session_id,
+        videoFile: fileName, clipStartTimeA: rStartA, clipStartTimeB: rStartB,
       },
-      url: fullURL,
-      isPlayingA: false,
-      isPlayingB: false,
-      answer1: isDebug ? "A > B" : null, // 설문 응답 1
-      answer2: isDebug ? "A > B" : null  // 설문 응답 2
+      url: fullURL, isPlayingA: false, isPlayingB: false, answers: initialAnswers
     });
   }
 });
 
+/* Video Logic */
 const videoRefs = {};
 const setVideoRef = (el, id, type) => {
   if (el) {
@@ -64,66 +65,49 @@ const setVideoRef = (el, id, type) => {
     videoRefs[key] = el;
     el.onloadedmetadata = () => {
       const item = items.value.find(x => x.id === id);
-      if(item) {
-        el.currentTime = type === 'A' ? item.meta.clipStartTimeA : item.meta.clipStartTimeB;
-      }
+      if (item) el.currentTime = type === 'A' ? item.meta.clipStartTimeA : item.meta.clipStartTimeB;
     };
   }
 };
-
 const handleTimeUpdate = (item, type) => {
   const key = `${item.id}_${type}`;
   const video = videoRefs[key];
   if (!video) return;
-
-  const startTime = type === 'A' ? item.meta.clipStartTimeA : item.meta.clipStartTimeB;
-  const endTime = startTime + CLIP_DURATION;
-
-  if (video.currentTime >= endTime) {
-    video.pause();
-    video.currentTime = startTime;
-    if (type === 'A') item.isPlayingA = false;
-    else item.isPlayingB = false;
+  const sTime = type === 'A' ? item.meta.clipStartTimeA : item.meta.clipStartTimeB;
+  if (video.currentTime >= sTime + CLIP_DURATION) {
+    video.pause(); video.currentTime = sTime;
+    type === 'A' ? item.isPlayingA = false : item.isPlayingB = false;
   }
 };
-
 const playClip = (item, type) => {
   const key = `${item.id}_${type}`;
-
   const video = videoRefs[key];
   if (!video) return;
-
   video.currentTime = type === 'A' ? item.meta.clipStartTimeA : item.meta.clipStartTimeB;
   video.play();
-
-  if (type === 'A') item.isPlayingA = true;
-  else item.isPlayingB = true;
+  type === 'A' ? item.isPlayingA = true : item.isPlayingB = true;
 };
 
+/* Submit Logic */
 const submitTask = () => {
-  const allAnswered = items.value.every(item => item.answer1 && item.answer2);
+  const allAnswered = items.value.every(item => Object.values(item.answers).every(val => val !== null));
   if (!allAnswered) {
-    alert("Please answer every item.");
+    alert("Please answer all questions for every round.");
     return;
   }
-
   const results = items.value.map(item => ({
-    ...item.meta,
-
-    ans1: item.answer1,
-    ans2: item.answer2,
-
-    timestamp: new Date().toISOString()
+    ...item.meta, ...item.answers, timestamp: new Date().toISOString()
   }));
   emit('submit', results);
 };
 </script>
+
 <template>
   <div class="task-container">
-    <h2>[{{ gameName }}] Pairwise Comparison (Game {{ block + 1 }} / 9)</h2>
+    <h2>[{{ gameName }}] Appraisal Evaluation (Game {{ block + 1 }} / 9)</h2>
     <p class="desc">
       Watch Clip A and Clip B.<br>
-      Compare them and select which one shows more of the stated emotion.
+      Compare them based on the 8 questions below.
     </p>
 
     <div v-for="(item, idx) in items" :key="item.id" class="item-box">
@@ -133,8 +117,7 @@ const submitTask = () => {
 
       <div class="content-wrapper">
 
-        <div class="video-column">
-
+        <div class="video-section">
           <div class="video-card">
             <div class="label-tag tag-a">Clip A</div>
             <video
@@ -167,53 +150,41 @@ const submitTask = () => {
         </div>
 
         <div class="survey-section">
+          <div class="questions-grid">
+            <div
+                v-for="(question, qIdx) in APPRAISAL_QUESTIONS"
+                :key="question.key"
+                class="q-block"
+            >
+              <div class="text-area">
+                <p class="question-text">
+                  <span class="q-num">Q{{ qIdx + 1 }}.</span>
+                  <strong>{{ question.label }}</strong>
+                </p>
+                <p class="question-desc" v-html="question.desc"></p>
+              </div>
 
-          <div class="q-row">
-            <p class="question-text">Q1. Which is more <strong>Exciting</strong>?</p>
-            <div class="comparison-group">
-              <label :class="{ selected: item.answer1 === 'A > B' }">
-                <input type="radio" :name="`q1_${item.id}`" value="A > B" v-model="item.answer1">
-                <span>A &gt; B</span>
-                <small>A is more</small>
-              </label>
+              <div class="comparison-group">
+                <label :class="{ selected: item.answers[question.key] === 'A > B' }">
+                  <input type="radio" :name="`${question.key}_${item.id}`" value="A > B" v-model="item.answers[question.key]">
+                  <span>A &gt; B</span>
+                  <small>A is More</small>
+                </label>
 
-              <label :class="{ selected: item.answer1 === 'A < B' }">
-                <input type="radio" :name="`q1_${item.id}`" value="A < B" v-model="item.answer1">
-                <span>A &lt; B</span>
-                <small>B is more</small>
-              </label>
+                <label :class="{ selected: item.answers[question.key] === 'A < B' }">
+                  <input type="radio" :name="`${question.key}_${item.id}`" value="A < B" v-model="item.answers[question.key]">
+                  <span>A &lt; B</span>
+                  <small>B is More</small>
+                </label>
+              </div>
             </div>
           </div>
-
-          <div class="divider"></div>
-
-          <div class="q-row">
-            <p class="question-text">Q2. Which is more <strong>Positive</strong>?</p>
-            <div class="comparison-group">
-              <label :class="{ selected: item.answer2 === 'A > B' }">
-                <input type="radio" :name="`q2_${item.id}`" value="A > B" v-model="item.answer2">
-                <span>A &gt; B</span>
-                <small>A is more</small>
-              </label>
-
-              <label :class="{ selected: item.answer2 === 'A < B' }">
-                <input type="radio" :name="`q2_${item.id}`" value="A < B" v-model="item.answer2">
-                <span>A &lt; B</span>
-                <small>B is more</small>
-              </label>
-            </div>
-          </div>
-
         </div>
+
       </div>
     </div>
 
-    <button
-        class="next-btn"
-        @click="submitTask"
-        :disabled="isLoading"
-        :style="{ opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }"
-    >
+    <button class="next-btn" @click="submitTask" :disabled="isLoading">
       <span v-if="isLoading">⏳ Saving Data...</span>
       <span v-else>Submit & Next</span>
     </button>
@@ -222,132 +193,90 @@ const submitTask = () => {
 </template>
 
 <style scoped>
-/* 기존 스타일 유지 */
-.task-container { max-width: 900px; margin: 0 auto; padding-bottom: 50px; }
-.desc { color: #888; margin-bottom: 30px; text-align: center; }
+.task-container { max-width: 1200px; margin: 0 auto; padding-bottom: 50px; }
+.desc { color: #555; margin-bottom: 30px; text-align: center; }
 
 .item-box {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 25px;
-  margin-bottom: 50px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  background: white; border: 1px solid #e0e0e0; border-radius: 12px;
+  padding: 30px; margin-bottom: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 .header { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
 .round-badge { background: #333; color: white; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
 
-.content-wrapper { display: flex; gap: 30px; align-items: flex-start; }
+.content-wrapper { display: flex; flex-direction: column; gap: 25px; }
 
-.video-column {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-width: 320px;
+.video-section {
+  display: flex; gap: 20px; justify-content: center;
 }
-
 .video-card {
-  position: relative;
-  background: #f8f9fa;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #eee;
+  flex: 1; max-width: 450px; /* 너무 커지지 않게 제한 */
+  position: relative; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #eee;
 }
-
-video {
-  width: 100%;
-  border-radius: 6px;
-  background: black;
-  display: block;
-}
+video { width: 100%; border-radius: 6px; background: black; display: block; }
 
 .label-tag {
-  position: absolute;
-  top: 20px; left: 20px;
-  padding: 4px 10px;
-  color: white;
-  font-weight: bold;
-  border-radius: 4px;
-  z-index: 5;
-  font-size: 12px;
+  position: absolute; top: 20px; left: 20px; padding: 4px 10px;
+  color: white; font-weight: bold; border-radius: 4px; z-index: 5; font-size: 12px;
   text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 .tag-a { background: rgba(66, 184, 131, 0.9); }
 .tag-b { background: rgba(53, 73, 94, 0.9); }
 
 .replay-btn {
-  width: 100%;
-  margin-top: 8px;
-  padding: 10px;
-  border: 1px solid #eee;
-  background: white;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  color: #0d47a1;
-  transition: 0.2s;
+  width: 100%; margin-top: 8px; padding: 10px;
+  border: 1px solid #eee; background: white; border-radius: 6px;
+  cursor: pointer; font-weight: 600; color: #0d47a1; transition: 0.2s;
 }
 .replay-btn:hover { background: #ccc; }
 .replay-btn.active { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
 
-.survey-section {
-  flex: 1;
-  padding-top: 10px;
+.survey-section { width: 100%; }
+
+.questions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
 }
 
-.q-row { margin-bottom: 10px; }
-.question-text { font-size: 16px; margin-bottom: 12px; color: #2c3e50; }
-.divider { height: 1px; background: #eee; margin: 25px 0; }
-
-.comparison-group {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
+.q-block {
+  background: #fdfdfd; border: 1px solid #eee; padding: 15px; border-radius: 8px;
+  display: flex; flex-direction: column; justify-content: space-between;
 }
+
+.text-area { min-height: 100px;}
+
+.question-text { font-size: 14.5px; margin-bottom: 6px; color: #2c3e50; line-height: 1.3; }
+.q-num { color: #42b883; font-weight: bold; margin-right: 5px; }
+.question-desc { font-size: 13px; color: #777; margin-bottom: 10px; line-height: 1.4; }
+
+.comparison-group { display: flex; gap: 5px; margin-top: auto; }
 
 .comparison-group label {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 15px 5px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: #fff;
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 8px 2px;
+  border: 1px solid #ddd; border-radius: 6px;
+  cursor: pointer; transition: all 0.2s; background: #fff;
+  min-width: 0;
 }
-
 .comparison-group input { display: none; }
-
-.comparison-group span {
-  font-size: 18px;
-  font-weight: bold;
-  color: #555;
-  margin-bottom: 4px;
-}
-
-.comparison-group small {
-  font-size: 11px;
-  color: #999;
-}
+.comparison-group span { font-size: 14px; font-weight: bold; color: #555; white-space: nowrap; }
+.comparison-group small { font-size: 10px; color: #999; white-space: nowrap; margin-top: 2px; }
 
 .comparison-group label:hover { border-color: #bbb; background: #f9f9f9; }
-
 .comparison-group label.selected {
-  border-color: #42b883;
-  background: #eafff5;
-  box-shadow: 0 4px 10px rgba(66, 184, 131, 0.2);
+  border-color: #42b883; background: #eafff5; box-shadow: 0 2px 5px rgba(66, 184, 131, 0.2);
 }
 .comparison-group label.selected span { color: #42b883; }
 .comparison-group label.selected small { color: #2c3e50; font-weight: bold; }
 
-@media (max-width: 768px) {
-  .content-wrapper { flex-direction: column; }
-  .video-column, .survey-section { width: 100%; }
+@media (max-width: 1000px) {
+  .questions-grid { grid-template-columns: repeat(2, 1fr); } /* 태블릿에선 2열 */
+}
+@media (max-width: 600px) {
+  .questions-grid { grid-template-columns: 1fr; } /* 모바일에선 1열 */
+  .video-section { flex-direction: column; }
+  .video-card { max-width: 100%; }
 }
 
 .next-btn {
@@ -355,5 +284,6 @@ video {
   background: #2c3e50; color: white;
   border-radius: 8px; border: none; cursor: pointer; font-weight: bold;
 }
-.next-btn:hover { background: #34495e; }
+.next-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.next-btn:hover:not(:disabled) { background: #34495e; }
 </style>
