@@ -50,6 +50,9 @@ const info = computed(() => {
           <li>
             Since the session is long, if you feel your concentration slipping, please <strong>take a short break</strong> right now before starting the session.
           </li>
+          <li>
+            If the videos do not appear immediately, please <strong>wait a few moments</strong> for them to load.
+          </li>
         </ul>
       </div>
     </div>

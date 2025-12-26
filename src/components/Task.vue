@@ -120,7 +120,6 @@ const submitTask = () => {
   const results = items.value.map(item => ({
     ...item.meta, ...item.answers, timestamp: new Date().toISOString()
   }));
-  console.log(results)
   emit('submit', results);
 };
 </script>
@@ -130,7 +129,7 @@ const submitTask = () => {
     <h2>[{{ gameName }}] Appraisal Evaluation (Game {{ block + 1 }} / 9)</h2>
     <p class="desc">
       Watch Clip A and Clip B.<br>
-      Compare them based on the 8 questions below.
+      Compare them based on the 6 questions below.
     </p>
 
     <div v-for="(item, idx) in items" :key="item.id" class="item-box">

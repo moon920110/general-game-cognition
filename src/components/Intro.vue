@@ -30,6 +30,9 @@
             <li>Please <strong>compare</strong> them and select which clip <strong>better fits the question</strong>.</li>
           </ul>
         </li>
+        <li style="color: #de734a;">
+          <strong>Payment Approval:</strong> Your participation fee will be approved only after a <strong>thorough quality check</strong> of your responses. We sincerely ask for your faithful participation.
+        </li>
       </ul>
     </div>
 
