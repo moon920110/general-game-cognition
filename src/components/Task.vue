@@ -20,14 +20,36 @@ const gameCodeMap = {
 };
 
 const APPRAISAL_QUESTIONS = [
-  { key: 'novelty', label: 'Novelty', desc: 'Which clip shows a more <strong>novel</strong> situation (i.e., <strong>sudden</strong>, <strong>unfamiliar</strong>, or <strong>unpredictable</strong>)?' },
-  { key: 'goal_relevance', label: 'Goal Relevance', desc: 'In which clip is the situation more <strong>relevant</strong> to the game\'s goal?' },
-  { key: 'outcome_probability', label: 'Outcome Probability', desc: 'In which clip is the <strong>result</strong> more <strong>predictable</strong>?' },
-  { key: 'discrepancy', label: 'Discrepancy', desc: 'Which clip shows a situation that is more <strong>unexpected or unpredictable</strong>?' },
-  { key: 'conduciveness', label: 'Goal Conduciveness', desc: 'Which clip shows a situation that is more <strong>helpful</strong> to achieving the game\'s goal?' },
-  { key: 'urgency', label: 'Urgency', desc: 'Which clip feels more <strong>urgent</strong> regarding the game\'s goal?' },
-  { key: 'control', label: 'Control', desc: 'In which clip do you feel you have more <strong>control</strong> over the situation?' },
-  { key: 'power', label: 'Power (Resources)', desc: 'In which clip do you have more <strong>resources</strong> to handle the situation?' }
+  {
+    key: 'novelty',
+    label: 'Novelty (Unexpectedness)',
+    desc: 'Which clip shows a situation that is more <strong>unexpected</strong>?'
+  },
+  {
+    key: 'goal_relevance',
+    label: 'Goal Relevance',
+    desc: 'In which clip is the situation more <strong>relevant</strong> to the game\'s goal?'
+  },
+  {
+    key: 'outcome_probability',
+    label: 'Outcome Probability',
+    desc: 'In which clip is the <strong>consequence</strong> more <strong>predictable</strong>?'
+  },
+  {
+    key: 'goal_conduciveness',
+    label: 'Goal Conduciveness',
+    desc: 'Which clip shows a situation that is more <strong>helpful</strong> to achieving the game\'s goal?'
+  },
+  {
+    key: 'urgency',
+    label: 'Urgency',
+    desc: 'Which clip feels more <strong>urgent</strong> regarding the game\'s goal?'
+  },
+  {
+    key: 'coping_potential',
+    label: 'Coping Potential',
+    desc: 'In which clip do you feel more <strong>capable</strong> of handling the situation (due to <strong>control</strong> or <strong>resources</strong>)?'
+  }
 ];
 
 onMounted(() => {
@@ -44,7 +66,7 @@ onMounted(() => {
     const rStartA = Math.random() * (VIDEO_FULL_DURATION - CLIP_DURATION - 2) + 2;
     const rStartB = Math.random() * (VIDEO_FULL_DURATION - CLIP_DURATION - 2) + 2;
     const initialAnswers = {};
-    APPRAISAL_QUESTIONS.forEach(q => initialAnswers[q.key] = isDebug ? "A > B" : null);
+    APPRAISAL_QUESTIONS.forEach(q => initialAnswers[q.key] = isDebug ? "A" : null);
 
     items.value.push({
       id: i,
@@ -98,6 +120,7 @@ const submitTask = () => {
   const results = items.value.map(item => ({
     ...item.meta, ...item.answers, timestamp: new Date().toISOString()
   }));
+  console.log(results)
   emit('submit', results);
 };
 </script>
@@ -165,16 +188,16 @@ const submitTask = () => {
               </div>
 
               <div class="comparison-group">
-                <label :class="{ selected: item.answers[question.key] === 'A > B' }">
-                  <input type="radio" :name="`${question.key}_${item.id}`" value="A > B" v-model="item.answers[question.key]">
-                  <span>A &gt; B</span>
-                  <small>A is More</small>
+                <label :class="{ selected: item.answers[question.key] === 'A' }">
+                  <input type="radio" :name="`${question.key}_${item.id}`" value="A" v-model="item.answers[question.key]">
+                  <span>A</span>
+                  <small>is More</small>
                 </label>
 
-                <label :class="{ selected: item.answers[question.key] === 'A < B' }">
-                  <input type="radio" :name="`${question.key}_${item.id}`" value="A < B" v-model="item.answers[question.key]">
-                  <span>A &lt; B</span>
-                  <small>B is More</small>
+                <label :class="{ selected: item.answers[question.key] === 'B' }">
+                  <input type="radio" :name="`${question.key}_${item.id}`" value="B" v-model="item.answers[question.key]">
+                  <span>B</span>
+                  <small>is More</small>
                 </label>
               </div>
             </div>
@@ -235,7 +258,7 @@ video { width: 100%; border-radius: 6px; background: black; display: block; }
 
 .questions-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 15px;
 }
 

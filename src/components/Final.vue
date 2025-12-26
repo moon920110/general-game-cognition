@@ -29,7 +29,7 @@ const PROLIFIC_URL = "https://app.prolific.com/submissions/complete?cc=CT5PSHSG"
 /* 스타일은 기존과 동일합니다 */
 .end-container { text-align: center; padding: 40px 20px; font-family: 'Pretendard', sans-serif; }
 .icon { font-size: 50px; margin-bottom: 20px; }
-h1 { color: #eceee0; margin-bottom: 10px; }
+h1 { color: #333; margin-bottom: 10px; }
 .action-box { margin: 40px 0; }
 
 .primary-btn {
