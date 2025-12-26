@@ -22,7 +22,7 @@
     <div class="info-box">
       <h3>📌 Study Overview</h3>
       <ul>
-        <li><strong>Estimated Duration:</strong> Approx. 20 minutes</li>
+        <li><strong>Estimated Duration:</strong> Approx. 25 minutes</li>
         <li><strong>Content:</strong> 9 Games × 10 Rounds (3 seconds each)</li>
         <li><strong>Task Instruction:</strong>
           <ul class="sub-list">

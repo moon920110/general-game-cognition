@@ -40,9 +40,16 @@ const info = computed(() => {
       <div class="warning-box">
         <h4>⚠️ Task Instructions</h4>
         <ul>
-          <li>You will watch <strong>10 gameplay clips</strong> of <strong>{{ props.gameName }}</strong>.</li>
-          <li>Each clip is a random <strong>3-second</strong> segment.</li>
-          <li>Please evaluate the <strong>TBD</strong> of this situation from an <strong>'objective'</strong> perspective.</li>
+          <li>You will perform <strong>10 comparison rounds</strong> for <strong>{{ props.gameName }}</strong>.</li>
+          <li>
+            Imagine <strong>you played</strong> this game. Watch the two clips (A & B) and select the one that <strong>better fits</strong> the specific question.
+          </li>
+          <li>
+            Please rely on your <strong>first impression</strong> (gut feeling). There are no right or wrong answers.
+          </li>
+          <li>
+            Since the session is long, if you feel your concentration slipping, please <strong>take a short break</strong> right now before starting the session.
+          </li>
         </ul>
       </div>
     </div>
@@ -62,15 +69,15 @@ const info = computed(() => {
 .step-badge { background: #eee; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
 
 .title-section { text-align: center; margin-bottom: 40px; color: #333;}
-h1 { font-size: 2.5rem; margin: 0 0 10px 0; color: #cecec0; }
+h1 { font-size: 2.5rem; margin: 0 0 10px 0; color: #333; }
 h3 { font-size: 2rem; margin: 0 0 10px 0; color: #2c3e50; }
 
 .desc-box { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
 
 .warning-box { background: #f8f9fa; border-left: 5px solid #42b883; padding: 20px; border-radius: 4px; }
-.warning-box h4 { margin-top: 0; color: #42b883; margin-bottom: 10px; }
+.warning-box h4 { margin-top: 0; color: #42b883; margin-bottom: 10px; font-size: 1.1rem;}
 .warning-box ul { margin: 0; padding-left: 20px; }
-.warning-box li { margin-bottom: 8px; color: #555; }
+.warning-box li { margin-bottom: 12px; color: #444; line-height: 1.5; font-size: 1rem; }
 
 .action-area { text-align: center; margin-top: 40px; }
 .start-btn {
@@ -86,7 +93,6 @@ h3 { font-size: 2rem; margin: 0 0 10px 0; color: #2c3e50; }
   line-height: 1.6;
   color: #333;
   margin-bottom: 30px;
-
   white-space: pre-wrap;
 }
 </style>
