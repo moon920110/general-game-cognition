@@ -29,19 +29,48 @@ const handleFileUpload = (event) => {
   reader.readAsText(file);
 };
 
+// Robust CSV line parser that safely ignores commas inside JSON strings
+const parseCSVLine = (text) => {
+  const result = [];
+  let inQuotes = false;
+  let currentVal = '';
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"' && text[i+1] === '"') {
+      currentVal += '"'; // Handle escaped quotes ""
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes; // Toggle quote state
+    } else if (char === ',' && !inQuotes) {
+      result.push(currentVal.trim());
+      currentVal = '';
+    } else {
+      currentVal += char;
+    }
+  }
+  result.push(currentVal.trim());
+  return result;
+};
+
 const parseCSV = (csvText) => {
-  const lines = csvText.trim().split('\n');
-  const headersLine = lines[0].replace(/^\ufeff/, '').split(',').map(h => h.trim());
+  const matches = csvText.match(/(?:[^\n"]|"(?:\\"|[^"])*")+/g);
+  const lines = matches ? matches.map(line => line.trim()).filter(line => line) : [];
+
+  if (lines.length < 1) return;
+
+  const headersLine = parseCSVLine(lines[0].replace(/^\ufeff/, ''));
   headers.value = headersLine;
 
   const parsed = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
+    const values = parseCSVLine(lines[i]);
     if (values.length !== headersLine.length) continue;
+
     const row = {};
     headersLine.forEach((header, index) => row[header] = values[index]);
     parsed.push(row);
   }
+
   rawData.value = parsed;
   selectedGame.value = 'All';
   selectedParticipant.value = 'All';
@@ -95,14 +124,12 @@ const parseArousalCSV = (csvText) => {
     const time = parseFloat(cols[idxTime].trim());
     const val = parseFloat(cols[idxArousal].trim());
 
-    // 데이터 유효성 검사 (NaN 제외)
     if (isNaN(time) || isNaN(val)) continue;
 
     if (!dataMap[sID]) dataMap[sID] = [];
     dataMap[sID].push({ time, val });
   }
 
-  // 시간순 정렬
   for (const sID in dataMap) {
     dataMap[sID].sort((a, b) => a.time - b.time);
   }
@@ -158,6 +185,22 @@ const startTimeB = computed(() => {
   return isNaN(val) ? 0 : val;
 });
 
+// 💡 JSON Parsing logic
+const rawAData = computed(() => {
+  if (!currentItem.value || !currentItem.value.raw_A) return null;
+  try { return JSON.parse(currentItem.value.raw_A); } catch(e) { return null; }
+});
+
+const rawBData = computed(() => {
+  if (!currentItem.value || !currentItem.value.raw_B) return null;
+  try { return JSON.parse(currentItem.value.raw_B); } catch(e) { return null; }
+});
+
+const synthData = computed(() => {
+  if (!currentItem.value || !currentItem.value.final_desc) return null;
+  try { return JSON.parse(currentItem.value.final_desc); } catch(e) { return null; }
+});
+
 const getClipArousal = (startTime) => {
   if (!isArousalLoaded.value || !currentSessionID.value) return [];
   const sessionData = arousalData.value[currentSessionID.value];
@@ -166,7 +209,6 @@ const getClipArousal = (startTime) => {
   const startSec = startTime;
   const endSec = startTime + CLIP_DURATION;
 
-  // 데이터 필터링 + 정렬 보장
   return sessionData.filter(d => d.time >= startSec && d.time <= endSec).sort((a, b) => a.time - b.time);
 };
 
@@ -174,7 +216,7 @@ const arousalGraphA = computed(() => getClipArousal(startTimeA.value));
 const arousalGraphB = computed(() => getClipArousal(startTimeB.value));
 
 // ====================================================
-// 6. 비디오 소스 관리
+// 6. 비디오 재생 제어
 // ====================================================
 watch(currentItem, (newItem) => {
   if (videoSrc.value && videoSrc.value.startsWith('blob:')) URL.revokeObjectURL(videoSrc.value);
@@ -194,9 +236,6 @@ onUnmounted(() => {
   if (videoSrc.value && videoSrc.value.startsWith('blob:')) URL.revokeObjectURL(videoSrc.value);
 });
 
-// ====================================================
-// 7. 비디오 재생 제어
-// ====================================================
 const videoRefA = ref(null);
 const videoRefB = ref(null);
 const isPlayingA = ref(false);
@@ -227,39 +266,31 @@ const playClip = (type) => {
 };
 
 const appraisalKeys = [
-  { key: 'Novelty', label: 'Novelty' },
-  { key: 'GoalRelevance', label: 'Goal Relevance' },
-  { key: 'OutcomeProbability', label: 'Outcome Probability' },
-  { key: 'GoalConduciveness', label: 'Goal Conduciveness' },
-  { key: 'Urgency', label: 'Urgency' },
-  { key: 'CopingPotential', label: 'Coping Potential' },
+  { key: 'Novelty', jsonKey: 'novelty', label: 'Novelty' },
+  { key: 'GoalRelevance', jsonKey: 'goal_relevance', label: 'Goal Relevance' },
+  { key: 'OutcomeProbability', jsonKey: 'outcome_probability', label: 'Outcome Probability' },
+  { key: 'GoalConduciveness', jsonKey: 'goal_conduciveness', label: 'Goal Conduciveness' },
+  { key: 'Urgency', jsonKey: 'urgency', label: 'Urgency' },
+  { key: 'CopingPotential', jsonKey: 'coping_potential', label: 'Coping Potential' },
 ];
 
 // ====================================================
-// 8. SVG Path 생성 함수 (강력한 안정성 버전)
+// 7. SVG Path 생성 함수
 // ====================================================
 const generatePath = (data, clipStartTime) => {
-  // 1. 유효 데이터만 추출 (NaN 제거)
   if (!data) return '';
   const validData = data.filter(d => !isNaN(Number(d.val)) && !isNaN(Number(d.time)));
   if (validData.length === 0) return '';
 
   const width = 100;
   const height = 100;
+  const baseTime = (typeof clipStartTime === 'number' && !isNaN(clipStartTime)) ? clipStartTime : Number(validData[0].time);
 
-  // 2. 기준 시간 설정
-  const baseTime = (typeof clipStartTime === 'number' && !isNaN(clipStartTime))
-      ? clipStartTime
-      : Number(validData[0].time);
-
-  // 3. Min/Max 계산
   const vals = validData.map(d => Number(d.val));
   const minVal = Math.min(...vals);
   const maxVal = Math.max(...vals);
 
-  // 4. 값이 모두 같을 경우 (Flat Line) 전용 처리
   if (maxVal === minVal) {
-    // 모든 포인트를 중앙(50)에 찍음
     const points = validData.map(d => {
       let x = ((Number(d.time) - baseTime) / CLIP_DURATION) * width;
       x = Math.max(0, Math.min(width, x));
@@ -268,16 +299,12 @@ const generatePath = (data, clipStartTime) => {
     return `M ${points.join(' L ')}`;
   }
 
-  // 5. 일반적인 경우 (변화 있음)
   const range = maxVal - minVal;
   const points = validData.map(d => {
     let x = ((Number(d.time) - baseTime) / CLIP_DURATION) * width;
     x = Math.max(0, Math.min(width, x));
-
-    // Y축 정규화 (10% ~ 90% 영역 사용)
     let normalizedY = ((Number(d.val) - minVal) / range) * 80 + 10;
     let y = height - normalizedY;
-
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
 
@@ -292,23 +319,20 @@ const generatePath = (data, clipStartTime) => {
 
       <div class="upload-section">
         <label class="file-label csv-btn">
-          📄 1. Crowd Log (CSV)
+          📄 1. Crowd / Result Log
           <input type="file" accept=".csv" @change="handleFileUpload" hidden>
         </label>
-
         <label class="file-label folder-btn">
           📂 2. Video Folder
           <input type="file" webkitdirectory directory multiple @change="handleFolderUpload" hidden>
         </label>
-
         <label class="file-label arousal-btn">
           📈 3. Clean Data (CSV)
           <input type="file" accept=".csv" @change="handleArousalUpload" hidden>
         </label>
-
         <div class="status-info">
-          <div v-if="rawData.length">✅ Crowd Log: {{ rawData.length }} rows</div>
-          <div v-if="Object.keys(videoFiles).length">✅ Videos: {{ Object.keys(videoFiles).length }} files</div>
+          <div v-if="rawData.length">✅ CSV Rows: {{ rawData.length }}</div>
+          <div v-if="Object.keys(videoFiles).length">✅ Videos: {{ Object.keys(videoFiles).length }}</div>
           <div v-if="isArousalLoaded">✅ Arousal Data: Loaded</div>
         </div>
       </div>
@@ -329,13 +353,7 @@ const generatePath = (data, clipStartTime) => {
       </div>
 
       <div class="list-section" v-if="rawData.length">
-        <div
-            v-for="(row, idx) in filteredData"
-            :key="idx"
-            class="list-item"
-            :class="{ active: selectedRowIndex === idx }"
-            @click="selectedRowIndex = idx"
-        >
+        <div v-for="(row, idx) in filteredData" :key="idx" class="list-item" :class="{ active: selectedRowIndex === idx }" @click="selectedRowIndex = idx">
           <div class="item-header">
             <span class="item-game">{{ row.GameName }}</span>
             <span v-if="videoFiles[row.VideoFile]" class="status-dot ok">●</span>
@@ -345,93 +363,125 @@ const generatePath = (data, clipStartTime) => {
           <div class="item-file">{{ row.VideoFile }}</div>
         </div>
       </div>
-      <div v-else class="empty-msg">
-        Please Load Data Files
-      </div>
+      <div v-else class="empty-msg">Please Load Data Files</div>
     </div>
 
     <div class="main-content">
       <div v-if="currentItem" class="detail-view">
-        <header class="detail-header">
-          <div class="header-top">
-            <h3>{{ currentItem.GameName }}</h3>
-            <span class="pid-badge">Participant: {{ currentItem.ParticipantID }}</span>
-          </div>
-          <p class="file-name">
-            {{ currentItem.VideoFile }}
-            <span v-if="!videoSrc" class="error-badge">Video Not Found</span>
-            <span v-if="!isArousalLoaded" class="warn-badge">Arousal Data Missing</span>
-          </p>
-        </header>
 
-        <div class="video-grid">
-          <div class="video-group">
-            <div class="video-card">
-              <div class="label-tag tag-a">Clip A ({{ startTimeA.toFixed(1) }}s)</div>
-              <video v-if="videoSrc"
-                     ref="videoRefA" :src="videoSrc" muted playsinline
-                     @loadedmetadata="onMetadataLoaded('A')" @timeupdate="handleTimeUpdate('A')"
-              ></video>
-              <div v-else class="no-video-placeholder">No Video</div>
-              <button class="play-btn" @click="playClip('A')" :disabled="!videoSrc" :class="{ playing: isPlayingA }">
-                {{ isPlayingA ? 'Playing A...' : '▶ Play Clip A' }}
-              </button>
+        <div class="fixed-top-section">
+          <header class="detail-header">
+            <div class="header-top">
+              <h3>{{ currentItem.GameName }}</h3>
+              <span class="pid-badge">Participant: {{ currentItem.ParticipantID }}</span>
             </div>
+            <p class="file-name">
+              {{ currentItem.VideoFile }}
+              <span v-if="!videoSrc" class="error-badge">Video Not Found</span>
+              <span v-if="!isArousalLoaded" class="warn-badge">Arousal Data Missing</span>
+            </p>
+          </header>
 
-            <div class="graph-box">
-              <div v-if="arousalGraphA.length > 0" style="width:100%; height:100%">
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="arousal-svg">
-                  <line x1="0" y1="50" x2="100" y2="50" stroke="#ddd" stroke-width="1" stroke-dasharray="4" />
-                  <path :d="generatePath(arousalGraphA, startTimeA)" fill="none" stroke="#42b883" stroke-width="3" />
-                </svg>
-                <div class="debug-info">
-                  Pts: {{ arousalGraphA.length }} / Range: {{ Math.min(...arousalGraphA.map(d=>d.val)).toFixed(2) }}~{{ Math.max(...arousalGraphA.map(d=>d.val)).toFixed(2) }}
+          <div class="video-grid">
+            <div class="video-group">
+              <div class="video-card">
+                <div class="label-tag tag-a">Clip A ({{ startTimeA.toFixed(1) }}s)</div>
+                <video v-if="videoSrc" ref="videoRefA" :src="videoSrc" muted playsinline @loadedmetadata="onMetadataLoaded('A')" @timeupdate="handleTimeUpdate('A')"></video>
+                <div v-else class="no-video-placeholder">No Video</div>
+                <button class="play-btn" @click="playClip('A')" :disabled="!videoSrc" :class="{ playing: isPlayingA }">{{ isPlayingA ? 'Playing A...' : '▶ Play Clip A' }}</button>
+              </div>
+              <div class="graph-box">
+                <div v-if="arousalGraphA.length > 0" style="width:100%; height:100%">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="arousal-svg">
+                    <line x1="0" y1="50" x2="100" y2="50" stroke="#ddd" stroke-width="1" stroke-dasharray="4" />
+                    <path :d="generatePath(arousalGraphA, startTimeA)" fill="none" stroke="#42b883" stroke-width="3" />
+                  </svg>
                 </div>
-              </div>
-              <div v-else class="no-data">
-                No Data (Check Time/ID)
+                <div v-else class="no-data">No Data</div>
               </div>
             </div>
-          </div>
 
-          <div class="video-group">
-            <div class="video-card">
-              <div class="label-tag tag-b">Clip B ({{ startTimeB.toFixed(1) }}s)</div>
-              <video v-if="videoSrc"
-                     ref="videoRefB" :src="videoSrc" muted playsinline
-                     @loadedmetadata="onMetadataLoaded('B')" @timeupdate="handleTimeUpdate('B')"
-              ></video>
-              <div v-else class="no-video-placeholder">No Video</div>
-              <button class="play-btn" @click="playClip('B')" :disabled="!videoSrc" :class="{ playing: isPlayingB }">
-                {{ isPlayingB ? 'Playing B...' : '▶ Play Clip B' }}
-              </button>
-            </div>
-
-            <div class="graph-box">
-              <div v-if="arousalGraphB.length > 0" style="width:100%; height:100%">
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="arousal-svg">
-                  <line x1="0" y1="50" x2="100" y2="50" stroke="#ddd" stroke-width="1" stroke-dasharray="4" />
-                  <path :d="generatePath(arousalGraphB, startTimeB)" fill="none" stroke="#35495e" stroke-width="3" />
-                </svg>
-                <div class="debug-info">
-                  Pts: {{ arousalGraphB.length }} / Range: {{ Math.min(...arousalGraphB.map(d=>d.val)).toFixed(2) }}~{{ Math.max(...arousalGraphB.map(d=>d.val)).toFixed(2) }}
+            <div class="video-group">
+              <div class="video-card">
+                <div class="label-tag tag-b">Clip B ({{ startTimeB.toFixed(1) }}s)</div>
+                <video v-if="videoSrc" ref="videoRefB" :src="videoSrc" muted playsinline @loadedmetadata="onMetadataLoaded('B')" @timeupdate="handleTimeUpdate('B')"></video>
+                <div v-else class="no-video-placeholder">No Video</div>
+                <button class="play-btn" @click="playClip('B')" :disabled="!videoSrc" :class="{ playing: isPlayingB }">{{ isPlayingB ? 'Playing B...' : '▶ Play Clip B' }}</button>
+              </div>
+              <div class="graph-box">
+                <div v-if="arousalGraphB.length > 0" style="width:100%; height:100%">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="arousal-svg">
+                    <line x1="0" y1="50" x2="100" y2="50" stroke="#ddd" stroke-width="1" stroke-dasharray="4" />
+                    <path :d="generatePath(arousalGraphB, startTimeB)" fill="none" stroke="#35495e" stroke-width="3" />
+                  </svg>
                 </div>
-              </div>
-              <div v-else class="no-data">
-                No Data (Check Time/ID)
+                <div v-else class="no-data">No Data</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="result-grid">
-          <div v-for="appraisal in appraisalKeys" :key="appraisal.key" class="result-card">
-            <div class="card-label">{{ appraisal.label }}</div>
-            <div class="choice-display">
-              <div class="choice-box a-box" :class="{ selected: currentItem[appraisal.key] === 'A' }">A</div>
-              <div class="choice-box b-box" :class="{ selected: currentItem[appraisal.key] === 'B' }">B</div>
+        <div class="llm-scroll-area">
+          <div class="llm-results-container">
+
+            <div class="sticky-header">
+              <h2>Phase 1: Clinical Event Logs</h2>
             </div>
-            <div class="result-text">User chose: <strong>{{ currentItem[appraisal.key] }}</strong></div>
+            <div class="llm-result-card phase-1-card" v-if="rawAData?.description || rawBData?.description">
+              <div class="llm-comparison-grid">
+                <div class="llm-side llm-a-side">
+                  <div class="llm-box raw-box">
+                    <span class="badge">Event Log A</span>
+                    <p class="pre-wrap">{{ rawAData?.description || 'No Event Log Data for A' }}</p>
+                  </div>
+                </div>
+                <div class="llm-side llm-b-side">
+                  <div class="llm-box raw-box">
+                    <span class="badge">Event Log B</span>
+                    <p class="pre-wrap">{{ rawBData?.description || 'No Event Log Data for B' }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sticky-header">
+              <h2>Phase 2: Appraisal Synthesis</h2>
+            </div>
+            <div v-for="appraisal in appraisalKeys" :key="appraisal.key" class="llm-result-card">
+              <div class="llm-card-header">
+                <h4 class="card-label">{{ appraisal.label }}</h4>
+                <div class="human-label-badge">
+                  Human Vote: <strong :class="{'text-a': currentItem[appraisal.key] === 'A', 'text-b': currentItem[appraisal.key] === 'B'}">{{ currentItem[appraisal.key] || 'N/A' }}</strong>
+                </div>
+              </div>
+
+              <div v-if="synthData">
+                <div class="llm-unified-rationale">
+                  <span class="badge synth-badge">Unified Rationale</span>
+                  <p class="rationale-text pre-wrap">{{ synthData?.[appraisal.jsonKey]?.rationale || 'No rationale data available' }}</p>
+                </div>
+
+                <div class="llm-comparison-grid mt-3">
+                  <div class="llm-side llm-a-side" :class="{ 'is-winner': currentItem[appraisal.key] === 'A' }">
+                    <div class="llm-box synth-box">
+                      <span class="badge synth-badge">Refined Description A</span>
+                      <p class="pre-wrap">{{ synthData?.[appraisal.jsonKey]?.description_A || 'No data' }}</p>
+                    </div>
+                  </div>
+
+                  <div class="llm-side llm-b-side" :class="{ 'is-winner': currentItem[appraisal.key] === 'B' }">
+                    <div class="llm-box synth-box">
+                      <span class="badge synth-badge">Refined Description B</span>
+                      <p class="pre-wrap">{{ synthData?.[appraisal.jsonKey]?.description_B || 'No data' }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="no-llm-data">
+                <p>No Appraisal Synthesis data available for this clip.</p>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -444,43 +494,20 @@ const generatePath = (data, clipStartTime) => {
 </template>
 
 <style scoped>
-/* ✅ 전체 레이아웃: 100vw 대신 100% 사용 (스크롤바 이슈 방지) */
-.viewer-container {
-  display: flex;
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-  font-family: 'Pretendard', sans-serif;
-  background: #f5f7fa;
-}
-
-/* 사이드바 */
-.sidebar {
-  width: 420px;
-  min-width: 420px; /* 고정 너비 */
-  background: white;
-  border-right: 1px solid #ddd;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-  z-index: 10;
-  height: 100%; /* 높이 꽉 채우기 */
-}
+/* Basic Layout */
+.viewer-container { display: flex; width: 100%; height: 100vh; overflow: hidden; font-family: 'Pretendard', sans-serif; background: #f5f7fa; }
+.sidebar { width: 420px; min-width: 420px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.05); z-index: 10; height: 100%; }
 h2 { margin: 0 0 20px 0; font-size: 1.5rem; color: #333; }
-
 .upload-section { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
 .file-label { display: block; text-align: center; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.9rem; color: white; }
 .csv-btn { background: #2c3e50; } .csv-btn:hover { background: #34495e; }
 .folder-btn { background: #42b883; } .folder-btn:hover { background: #3aa876; }
 .arousal-btn { background: #e67e22; } .arousal-btn:hover { background: #d35400; }
 .status-info { font-size: 0.8rem; color: #666; margin-top: 5px; }
-
 .filter-section { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
 .filter-group { display: flex; align-items: center; margin-bottom: 8px; justify-content: space-between; }
 .filter-group label { font-size: 0.9rem; font-weight: bold; color: #555; }
 .filter-group select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 70%; }
-
 .list-section { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; }
 .list-item { padding: 15px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: 0.2s; }
 .list-item:hover { background: #f9f9f9; }
@@ -493,28 +520,13 @@ h2 { margin: 0 0 20px 0; font-size: 1.5rem; color: #333; }
 .item-file { font-size: 0.75rem; color: #999; word-break: break-all; line-height: 1.2; font-family: monospace; }
 .empty-msg { color: #999; text-align: center; margin-top: 50px; font-size: 1rem; }
 
-/* ✅ 메인 컨텐츠 (수정됨) */
-.main-content {
-  flex: 1;
-  min-width: 0; /* ⚠️ 핵심: Flex 자식이 부모보다 커지는 것 방지 (21:9 해결) */
-  overflow-y: auto;
-  padding: 30px 40px;
-  display: flex;
-  flex-direction: column;
-  background: #f5f7fa;
-}
-
+.main-content { flex: 1; min-width: 0; padding: 30px 40px 0 40px; display: flex; flex-direction: column; background: #f5f7fa; overflow: hidden; }
 .placeholder-view { flex: 1; display: flex; align-items: center; justify-content: center; }
 .placeholder-content { font-size: 1.5rem; color: #aaa; font-weight: bold; }
+.detail-view { width: 100%; max-width: 1800px; margin: 0 auto; display: flex; flex-direction: column; height: 100%; }
 
-/* ✅ 21:9 대응: 콘텐츠가 너무 퍼지지 않게 중앙 정렬 및 최대 너비 제한 */
-.detail-view {
-  width: 100%;
-  max-width: 1800px; /* 울트라와이드에서 너무 넓어지는 것 방지 */
-  margin: 0 auto;    /* 중앙 정렬 */
-}
-
-.detail-header { margin-bottom: 30px; border-bottom: 1px solid #ddd; padding-bottom: 20px; }
+.fixed-top-section { flex-shrink: 0; }
+.detail-header { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 15px; }
 .header-top { display: flex; align-items: center; gap: 20px; margin-bottom: 10px; }
 .header-top h3 { margin: 0; font-size: 2.2rem; color: #2c3e50; }
 .pid-badge { font-size: 1.1rem; background: #eee; padding: 6px 12px; border-radius: 6px; color: #555; }
@@ -522,37 +534,70 @@ h2 { margin: 0 0 20px 0; font-size: 1.5rem; color: #333; }
 .error-badge { color: white; background: #e74c3c; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 .warn-badge { color: #333; background: #f1c40f; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
-.video-grid { display: flex; gap: 30px; margin-bottom: 40px; width: 100%; }
-.video-group { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; /* 내부 요소 넘침 방지 */ }
-
+.video-grid { display: flex; gap: 30px; margin-bottom: 15px; width: 100%; }
+.video-group { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .video-card { position: relative; background: #000; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-video { width: 100%; display: block; max-height: 50vh; flex: 1; object-fit: contain; background: #000; }
-.no-video-placeholder { height: 300px; display: flex; align-items: center; justify-content: center; color: #666; background: #eee; font-weight: bold; font-size: 1.2rem; }
-
+video { width: 100%; display: block; max-height: 40vh; flex: 1; object-fit: contain; background: #000; }
+.no-video-placeholder { height: 250px; display: flex; align-items: center; justify-content: center; color: #666; background: #eee; font-weight: bold; font-size: 1.2rem; }
 .label-tag { position: absolute; top: 15px; left: 15px; padding: 8px 16px; border-radius: 6px; color: white; font-weight: bold; font-size: 1rem; z-index: 5; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
 .tag-a { background: rgba(66, 184, 131, 0.95); }
 .tag-b { background: rgba(53, 73, 94, 0.95); }
-
-.play-btn { width: 100%; padding: 15px; border: none; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #555; border-top: 1px solid #eee; font-size: 1rem; transition: background 0.2s; }
+.play-btn { width: 100%; padding: 12px; border: none; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #555; border-top: 1px solid #eee; font-size: 1rem; transition: background 0.2s; }
 .play-btn:hover:not(:disabled) { background: #e9ecef; }
 .play-btn:disabled { color: #ccc; cursor: not-allowed; }
 .play-btn.playing { background: #d0ebff; color: #1864ab; }
 
-/* 그래프 박스 */
-.graph-box { height: 120px; background: white; border: 1px solid #ddd; border-radius: 8px; position: relative; overflow: hidden; padding: 0; }
+.graph-box { height: 80px; background: white; border: 1px solid #ddd; border-radius: 8px; position: relative; overflow: hidden; padding: 0; }
 .arousal-svg { width: 100%; height: 100%; display: block; }
 .no-data { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #bbb; font-size: 0.8rem; background: #f9f9f9; text-align: center; }
-.debug-info { position: absolute; bottom: 2px; right: 5px; font-size: 10px; color: #aaa; background: rgba(255,255,255,0.9); padding: 2px 4px; border-radius: 4px; pointer-events: none; }
 path { stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 
-.result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; width: 100%; }
-.result-card { background: white; padding: 25px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display: flex; flex-direction: column; align-items: center; transition: transform 0.2s; }
-.result-card:hover { transform: translateY(-3px); }
-.card-label { font-weight: bold; color: #555; margin-bottom: 15px; font-size: 1.2rem; }
+.llm-scroll-area { flex: 1; overflow-y: auto; padding-right: 15px; padding-bottom: 30px; }
+.llm-scroll-area::-webkit-scrollbar { width: 8px; }
+.llm-scroll-area::-webkit-scrollbar-track { background: transparent; }
+.llm-scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.llm-scroll-area::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-.choice-display { display: flex; gap: 20px; margin-bottom: 15px; }
-.choice-box { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: bold; color: #ddd; border: 3px solid #eee; font-size: 1.4rem; }
-.a-box.selected { background: #42b883; color: white; border-color: #42b883; box-shadow: 0 0 15px rgba(66, 184, 131, 0.5); }
-.b-box.selected { background: #35495e; color: white; border-color: #35495e; box-shadow: 0 0 15px rgba(53, 73, 94, 0.5); }
-.result-text { font-size: 1.1rem; color: #666; }
+.sticky-header { position: sticky; top: 0; background: #f5f7fa; padding: 15px 0 10px 0; z-index: 10; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
+.sticky-header h2 { margin: 0; }
+
+.llm-results-container { display: flex; flex-direction: column; gap: 20px; width: 100%; }
+.llm-result-card { background: white; border-radius: 12px; border: 1px solid #ddd; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+.phase-1-card { background: #fafafa; border: 2px dashed #ccc; }
+
+.llm-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid #eee; }
+.llm-card-header h4 { margin: 0; font-size: 1.4rem; color: #2c3e50; }
+.human-label-badge { background: #f1f3f5; padding: 8px 16px; border-radius: 6px; font-size: 1rem; color: #333; }
+.text-a { color: #42b883; font-weight: 900; }
+.text-b { color: #35495e; font-weight: 900; }
+
+/* 💡 NEW: Unified Rationale Box Styles */
+.llm-unified-rationale {
+  background: rgba(0, 102, 204, 0.03);
+  border: 1px solid rgba(0, 102, 204, 0.2);
+  border-left: 4px solid #0066cc;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+.mt-3 { margin-top: 15px; }
+
+.llm-comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.llm-side { padding: 20px; border-radius: 8px; border: 2px solid transparent; }
+.llm-side.is-winner { border-color: #42b883; background: rgba(66, 184, 131, 0.05); }
+.llm-b-side.is-winner { border-color: #35495e; background: rgba(53, 73, 94, 0.05); }
+
+.llm-box { background: white; padding: 15px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.raw-box { border-left: 4px solid #aaa; }
+.synth-box { border-left: 4px solid #0066cc; }
+
+.badge { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 3px 8px; border-radius: 4px; background: #eee; color: #555; margin-bottom: 8px; text-transform: uppercase; }
+.synth-badge { background: #e6f2ff; color: #0066cc; }
+
+.pre-wrap { white-space: pre-wrap; word-break: break-word; }
+.llm-box p { margin: 0; font-size: 0.95rem; line-height: 1.5; color: #444; }
+.llm-unified-rationale p { margin: 0; font-size: 0.95rem; line-height: 1.6; }
+.rationale-text { font-style: italic; color: #1864ab; }
+.mt-2 { margin-top: 15px; }
+.no-llm-data { padding: 20px; text-align: center; color: #888; background: #f9f9f9; border-radius: 8px; font-style: italic; }
 </style>
