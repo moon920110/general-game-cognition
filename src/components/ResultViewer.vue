@@ -55,7 +55,7 @@ const parseCSVLine = (text) => {
 const parseCSV = (csvText) => {
   // const matches = csvText.match(/(?:[^\n"]|"(?:\\"|[^"])*")+/g);
   // const lines = matches ? matches.map(line => line.trim()).filter(line => line) : [];
-  const lines = csvText.split(/\r?\n/).map(line => line.trin()).filter(line => line.length > 0);
+  const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
 
   if (lines.length < 1) return;
 
@@ -325,7 +325,7 @@ const generatePath = (data, clipStartTime) => {
         </label>
         <label class="file-label folder-btn">
           📂 2. Video Folder
-          <input type="file" webkitdirectory directory multiple @change="handleFolderUpload" hidden>
+          <input type="file" webkitdirectory="true" directory="true" multiple @change="handleFolderUpload" hidden>
         </label>
         <label class="file-label arousal-btn">
           📈 3. Clean Data (CSV)
@@ -599,6 +599,5 @@ path { stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling
 .llm-box p { margin: 0; font-size: 0.95rem; line-height: 1.5; color: #444; }
 .llm-unified-rationale p { margin: 0; font-size: 0.95rem; line-height: 1.6; }
 .rationale-text { font-style: italic; color: #1864ab; }
-.mt-2 { margin-top: 15px; }
 .no-llm-data { padding: 20px; text-align: center; color: #888; background: #f9f9f9; border-radius: 8px; font-style: italic; }
 </style>
