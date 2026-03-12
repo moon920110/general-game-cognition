@@ -53,8 +53,9 @@ const parseCSVLine = (text) => {
 };
 
 const parseCSV = (csvText) => {
-  const matches = csvText.match(/(?:[^\n"]|"(?:\\"|[^"])*")+/g);
-  const lines = matches ? matches.map(line => line.trim()).filter(line => line) : [];
+  // const matches = csvText.match(/(?:[^\n"]|"(?:\\"|[^"])*")+/g);
+  // const lines = matches ? matches.map(line => line.trim()).filter(line => line) : [];
+  const lines = csvText.split(/\r?\n/).map(line => line.trin()).filter(line => line.length > 0);
 
   if (lines.length < 1) return;
 
