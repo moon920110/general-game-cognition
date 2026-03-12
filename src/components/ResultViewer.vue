@@ -325,7 +325,7 @@ const generatePath = (data, clipStartTime) => {
         </label>
         <label class="file-label folder-btn">
           📂 2. Video Folder
-          <input type="file" webkitdirectory="true" directory="true" multiple @change="handleFolderUpload" hidden>
+          <input type="file" webkitdirectory directory multiple @change="handleFolderUpload" hidden>
         </label>
         <label class="file-label arousal-btn">
           📈 3. Clean Data (CSV)
