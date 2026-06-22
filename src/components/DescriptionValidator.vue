@@ -9,7 +9,7 @@ const headers = ref([]);
 const videoFiles = ref({});
 
 const participantName = ref('');
-const sampleSize = ref(5);
+const SAMPLE_SIZE = 5;
 const CLIP_DURATION = 3;
 
 const phase = ref('setup'); // 'setup' | 'task' | 'result'
@@ -115,7 +115,7 @@ const shuffleArray = (arr) => {
 // Start Task
 // ====================================================
 const canStart = computed(() => {
-  return rawData.value.length > 0 && participantName.value.trim() && sampleSize.value > 0;
+  return rawData.value.length >= SAMPLE_SIZE && participantName.value.trim();
 });
 
 const startTask = () => {
@@ -124,7 +124,7 @@ const startTask = () => {
     if (src && src.startsWith('blob:')) URL.revokeObjectURL(src);
   });
 
-  const n = Math.min(sampleSize.value, rawData.value.length);
+  const n = Math.min(SAMPLE_SIZE, rawData.value.length);
   const shuffledRows = shuffleArray(rawData.value);
   const selectedRows = shuffledRows.slice(0, n);
 
@@ -395,11 +395,7 @@ const downloadResults = () => {
           <label>Participant Name / ID</label>
           <input v-model="participantName" type="text" placeholder="Enter name or ID" />
         </div>
-        <div class="form-group">
-          <label>Number of clips to sample (n)</label>
-          <input v-model.number="sampleSize" type="number" min="1" :max="rawData.length || 100" />
-          <span class="hint" v-if="rawData.length">Total descriptions: {{ Math.min(sampleSize, rawData.length) * 6 }} ({{ Math.min(sampleSize, rawData.length) }} clips x 6 dimensions)</span>
-        </div>
+        <p class="hint" v-if="rawData.length">{{ SAMPLE_SIZE }} clips will be sampled ({{ SAMPLE_SIZE * 6 }} descriptions total)</p>
       </div>
 
       <button class="start-btn" :disabled="!canStart" @click="startTask">
@@ -684,13 +680,13 @@ h2 { margin: 0; font-size: 1.3rem; color: #2c3e50; }
 .clips-grid {
   display: flex; gap: 12px; overflow-x: auto; padding-bottom: 5px;
 }
-.clip-cell { min-width: 180px; flex-shrink: 0; }
+.clip-cell { min-width: 280px; flex-shrink: 0; }
 .clip-video-card {
   position: relative; background: #000; border-radius: 8px; overflow: hidden;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-.clip-video-card video { width: 100%; display: block; height: 120px; object-fit: contain; background: #000; }
-.no-video-placeholder { height: 120px; display: flex; align-items: center; justify-content: center; color: #666; background: #eee; font-size: 0.8rem; }
+.clip-video-card video { width: 100%; display: block; height: 220px; object-fit: contain; background: #000; }
+.no-video-placeholder { height: 220px; display: flex; align-items: center; justify-content: center; color: #666; background: #eee; font-size: 0.8rem; }
 .clip-label-tag {
   position: absolute; top: 6px; left: 6px; padding: 3px 10px; border-radius: 4px;
   color: white; font-weight: bold; font-size: 0.75rem; z-index: 5;
