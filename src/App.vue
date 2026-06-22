@@ -6,6 +6,8 @@ import Step3 from './components/Instruction.vue'
 import Step4 from './components/Task.vue'
 import Step5 from './components/Final.vue'
 import Reviewer from './components/ResultViewer.vue'
+import Validator from './components/DescriptionValidator.vue'
+import Summary from './components/ValidatorSummary.vue'
 import {db} from './firebase.js'
 import {collection, addDoc} from 'firebase/firestore/lite'
 
@@ -14,6 +16,16 @@ import gameInfo from './assets/unique_AGAIN.json';
 const isReviewMode = computed(() => {
   const params = new URLSearchParams(window.location.search);
   return params.get('mode') === 'review';
+});
+
+const isValidateMode = computed(() => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mode') === 'validate';
+});
+
+const isSummaryMode = computed(() => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mode') === 'summary';
 });
 
 const shuffleArray = (array) => {
@@ -135,7 +147,9 @@ const saveAllData = async () => {
 </script>
 
 <template>
-  <Reviewer v-if="isReviewMode" />
+  <Summary v-if="isSummaryMode" />
+  <Validator v-else-if="isValidateMode" />
+  <Reviewer v-else-if="isReviewMode" />
 
   <div v-else class="container">
     <Step1 v-if="currentStep === 1" @next="nextStep" />
