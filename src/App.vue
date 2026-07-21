@@ -8,6 +8,8 @@ import Step5 from './components/Final.vue'
 import Reviewer from './components/ResultViewer.vue'
 import Validator from './components/DescriptionValidator.vue'
 import Summary from './components/ValidatorSummary.vue'
+import Rating from './components/AppraisalRating.vue'
+import RatingSummary from './components/RatingSummary.vue'
 import {db} from './firebase.js'
 import {collection, addDoc} from 'firebase/firestore/lite'
 
@@ -26,6 +28,16 @@ const isValidateMode = computed(() => {
 const isSummaryMode = computed(() => {
   const params = new URLSearchParams(window.location.search);
   return params.get('mode') === 'summary';
+});
+
+const isRatingMode = computed(() => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mode') === 'rating';
+});
+
+const isRatingSummaryMode = computed(() => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mode') === 'rating-summary';
 });
 
 const shuffleArray = (array) => {
@@ -148,6 +160,8 @@ const saveAllData = async () => {
 
 <template>
   <Summary v-if="isSummaryMode" />
+  <RatingSummary v-else-if="isRatingSummaryMode" />
+  <Rating v-else-if="isRatingMode" />
   <Validator v-else-if="isValidateMode" />
   <Reviewer v-else-if="isReviewMode" />
 
