@@ -1,6 +1,12 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue';
 
+// HF repositories: videos are streamed from AGAIN_video by default
+// (a local video folder can still be uploaded as an offline override),
+// and clean_data.csv can be fetched from the prefab repo.
+const HF_VIDEO_BASE = 'https://huggingface.co/datasets/moon920110/AGAIN_video/resolve/main/';
+const HF_CLEAN_DATA_URL = 'https://huggingface.co/datasets/moon920110/prefab/resolve/main/clean_data/clean_data.csv';
+
 // CSV 데이터 및 로컬 비디오 파일 저장
 const rawData = ref([]);
 const headers = ref([]);
@@ -10,6 +16,7 @@ const videoSrc = ref('');
 // Arousal 데이터 저장소
 const arousalData = ref({});
 const isArousalLoaded = ref(false);
+const isArousalLoading = ref(false);
 
 // 필터 상태
 const selectedGame = ref('All');
@@ -100,6 +107,20 @@ const handleArousalUpload = (event) => {
   const reader = new FileReader();
   reader.onload = (e) => parseArousalCSV(e.target.result);
   reader.readAsText(file);
+};
+
+const loadArousalFromHF = async () => {
+  if (isArousalLoading.value) return;
+  isArousalLoading.value = true;
+  try {
+    const res = await fetch(HF_CLEAN_DATA_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    parseArousalCSV(await res.text());
+  } catch (e) {
+    alert('Failed to load clean_data.csv from Hugging Face: ' + e.message);
+  } finally {
+    isArousalLoading.value = false;
+  }
 };
 
 const parseArousalCSV = (csvText) => {
@@ -230,7 +251,10 @@ watch(currentItem, (newItem) => {
   }
   const fileName = newItem.VideoFile;
   const localFile = videoFiles.value[fileName];
-  videoSrc.value = localFile ? URL.createObjectURL(localFile) : '';
+  // Local file (if uploaded) takes priority; otherwise stream from HF
+  videoSrc.value = localFile
+    ? URL.createObjectURL(localFile)
+    : (fileName ? HF_VIDEO_BASE + fileName : '');
 });
 
 onUnmounted(() => {
@@ -323,17 +347,21 @@ const generatePath = (data, clipStartTime) => {
           📄 1. Crowd / Result Log
           <input type="file" accept=".csv" @change="handleFileUpload" hidden>
         </label>
+        <button class="file-label arousal-btn" :disabled="isArousalLoading" @click="loadArousalFromHF">
+          {{ isArousalLoading ? '⏳ Loading from HF...' : '📈 2. Clean Data from HF (~250 MB)' }}
+        </button>
         <label class="file-label folder-btn">
-          📂 2. Video Folder
+          📂 (Optional) Local Video Folder
           <input type="file" webkitdirectory directory multiple @change="handleFolderUpload" hidden>
         </label>
-        <label class="file-label arousal-btn">
-          📈 3. Clean Data (CSV)
+        <label class="file-label folder-btn">
+          📄 (Optional) Local clean_data.csv
           <input type="file" accept=".csv" @change="handleArousalUpload" hidden>
         </label>
         <div class="status-info">
           <div v-if="rawData.length">✅ CSV Rows: {{ rawData.length }}</div>
-          <div v-if="Object.keys(videoFiles).length">✅ Videos: {{ Object.keys(videoFiles).length }}</div>
+          <div>☁️ Videos streamed from HF (moon920110/AGAIN_video)</div>
+          <div v-if="Object.keys(videoFiles).length">✅ Local Videos: {{ Object.keys(videoFiles).length }}</div>
           <div v-if="isArousalLoaded">✅ Arousal Data: Loaded</div>
         </div>
       </div>
@@ -357,8 +385,8 @@ const generatePath = (data, clipStartTime) => {
         <div v-for="(row, idx) in filteredData" :key="idx" class="list-item" :class="{ active: selectedRowIndex === idx }" @click="selectedRowIndex = idx">
           <div class="item-header">
             <span class="item-game">{{ row.GameName }}</span>
-            <span v-if="videoFiles[row.VideoFile]" class="status-dot ok">●</span>
-            <span v-else class="status-dot missing">●</span>
+            <span v-if="videoFiles[row.VideoFile]" class="status-dot ok" title="local video">●</span>
+            <span v-else class="status-dot hf" title="streamed from Hugging Face">☁</span>
           </div>
           <div class="item-sub">ID: {{ row.ParticipantID }}</div>
           <div class="item-file">{{ row.VideoFile }}</div>
@@ -516,7 +544,7 @@ h2 { margin: 0 0 20px 0; font-size: 1.5rem; color: #333; }
 .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .item-game { font-weight: bold; color: #333; font-size: 1rem; }
 .status-dot { font-size: 0.8rem; }
-.status-dot.ok { color: #42b883; } .status-dot.missing { color: #e74c3c; }
+.status-dot.ok { color: #42b883; } .status-dot.hf { color: #3498db; }
 .item-sub { font-size: 0.85rem; color: #555; margin-bottom: 4px; }
 .item-file { font-size: 0.75rem; color: #999; word-break: break-all; line-height: 1.2; font-family: monospace; }
 .empty-msg { color: #999; text-align: center; margin-top: 50px; font-size: 1rem; }

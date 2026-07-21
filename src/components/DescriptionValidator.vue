@@ -4,6 +4,10 @@ import { ref, computed, reactive, onUnmounted } from 'vue';
 // ====================================================
 // State
 // ====================================================
+// Videos are streamed from the HF AGAIN_video repo by default;
+// an uploaded local folder (optional) takes priority.
+const HF_VIDEO_BASE = 'https://huggingface.co/datasets/moon920110/AGAIN_video/resolve/main/';
+
 const rawData = ref([]);
 const headers = ref([]);
 const videoFiles = ref({});
@@ -144,10 +148,12 @@ const startTask = () => {
   });
   sampledClips.value = clips;
 
-  // Create video blob URLs
+  // Local file (if uploaded) takes priority; otherwise stream from HF
   videoSources.value = clips.map(clip => {
     const localFile = videoFiles.value[clip.row.VideoFile];
-    return localFile ? URL.createObjectURL(localFile) : '';
+    return localFile
+      ? URL.createObjectURL(localFile)
+      : (clip.row.VideoFile ? HF_VIDEO_BASE + clip.row.VideoFile : '');
   });
   playingStates.value = clips.map(() => false);
 
@@ -379,13 +385,14 @@ const downloadResults = () => {
             <input type="file" accept=".csv" @change="handleFileUpload" hidden>
           </label>
           <label class="file-label folder-btn">
-            Upload Video Folder
+            (Optional) Local Video Folder
             <input type="file" webkitdirectory directory multiple @change="handleFolderUpload" hidden>
           </label>
         </div>
         <div class="status-info">
           <div v-if="rawData.length">CSV Rows: {{ rawData.length }}</div>
-          <div v-if="Object.keys(videoFiles).length">Videos: {{ Object.keys(videoFiles).length }}</div>
+          <div>Videos streamed from HF (moon920110/AGAIN_video)</div>
+          <div v-if="Object.keys(videoFiles).length">Local Videos: {{ Object.keys(videoFiles).length }}</div>
         </div>
       </div>
 
